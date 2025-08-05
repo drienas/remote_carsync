@@ -63,7 +63,6 @@ const mdbUpsertDataset = async (data) =>
         "update.r.bc",
         Buffer.from(JSON.stringify({ id: fzg_id }))
       );
-      console.log(fzg_id);
       resolve(succ);
     } catch (err) {
       reject(err);
@@ -75,6 +74,21 @@ const rmqConsumeQueue = (channel, queue) => {
   channel.consume(
     queue.queue,
     async (msg) => {
+      const startTime = Date.now();
+      const timestamp = () => {
+        const now = new Date();
+        return `${now.getHours().toString().padStart(2, "0")}:${now
+          .getMinutes()
+          .toString()
+          .padStart(2, "0")}:${now
+          .getSeconds()
+          .toString()
+          .padStart(2, "0")}:${now
+          .getMilliseconds()
+          .toString()
+          .padStart(4, "0")}`;
+      };
+
       try {
         let data;
         try {
@@ -87,11 +101,21 @@ const rmqConsumeQueue = (channel, queue) => {
           console.error(`No proper FZG_ID set`);
           nack(msg);
         }
+
         let success = await mdbUpsertDataset(data);
+        const endTime = Date.now();
+        const duration = endTime - startTime;
+
+        console.log(
+          `[${timestamp()}] Processed fzg_id: ${data.fzg_id} (${duration}ms)`
+        );
+
         if (success) ack(msg);
         else throw `Could not handle car`;
       } catch (err) {
-        console.error(err);
+        const endTime = Date.now();
+        const duration = endTime - startTime;
+        console.error(`[${timestamp()}] Error after ${duration}ms:`, err);
         nackError(msg);
       }
     },
