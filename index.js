@@ -1,5 +1,5 @@
-if (process.env.NODE_ENV !== 'production') {
-  require('dotenv').config();
+if (process.env.NODE_ENV !== "production") {
+  require("dotenv").config();
 }
 const mongoose = require(`mongoose`);
 
@@ -10,7 +10,7 @@ if (!MONGO_DB) {
   process.exit(0);
 }
 
-const rmq = require('./rmq');
+const rmq = require("./rmq");
 const mongoUrl = `mongodb://${MONGO_DB}/cars`;
 let iConnection, iChannel, iQueue;
 let Car;
@@ -38,12 +38,12 @@ const setUpMongoDbConnection = () => {
     useCreateIndex: true,
   });
 
-  mongoose.connection.on('error', (err) => {
+  mongoose.connection.on("error", (err) => {
     console.error(err);
     process.exit(0);
   });
 
-  mongoose.connection.on('disconnected', (msg) => {
+  mongoose.connection.on("disconnected", (msg) => {
     console.error(msg);
     process.exit(0);
   });
@@ -53,21 +53,14 @@ const mdbUpsertDataset = async (data) =>
   new Promise(async (resolve, reject) => {
     try {
       let fzg_id = data.fzg_id;
-      let existing = await Car.findOne({ fzg_id });
-      if (existing) {
-        let _id = existing._id;
-        await Car.updateOne(
-          {
-            _id,
-          },
-          data
-        );
-      } else {
-        await new Car(data).save();
-      }
+      await Car.updateOne(
+        { fzg_id: data.fzg_id },
+        { $set: data },
+        { upsert: true }
+      );
       let succ = await iChannel.publish(
-        'carbridge_x',
-        'update.r.bc',
+        "carbridge_x",
+        "update.r.bc",
         Buffer.from(JSON.stringify({ id: fzg_id }))
       );
       console.log(fzg_id);
@@ -110,13 +103,13 @@ const startSync = async () => {
   console.log(`Up and ready to sync cars to mongodb`);
 
   iConnection = await rmq.connect();
-  iChannel = await rmq.initExchangeChannel(iConnection, 'carbridge_x');
+  iChannel = await rmq.initExchangeChannel(iConnection, "carbridge_x");
 
   iQueue = await rmq.initQueue(
     iChannel,
-    'carbridge_x',
-    'CarBridge',
-    ['update.dsg.detail'],
+    "carbridge_x",
+    "CarBridge",
+    ["update.dsg.detail"],
     {
       prefetch: true,
       prefetchCount: 3,
@@ -129,13 +122,13 @@ const startSync = async () => {
 (async () => {
   try {
     setUpMongoDbConnection();
-    mongoose.connection.on('connected', (err) => {
+    mongoose.connection.on("connected", (err) => {
       console.log(`Connected to MongoDB`);
       if (err) {
         console.error(err);
         process.exit(0);
       }
-      Car = mongoose.model('Car', carSchema);
+      Car = mongoose.model("Car", carSchema);
       startSync();
     });
   } catch (err) {
