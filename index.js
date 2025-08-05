@@ -136,7 +136,7 @@ const startSync = async () => {
     ["update.dsg.detail"],
     {
       prefetch: true,
-      prefetchCount: 5,
+      prefetchCount: 1,
     }
   );
 
